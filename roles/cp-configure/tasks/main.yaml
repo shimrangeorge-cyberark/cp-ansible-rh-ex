@@ -52,21 +52,6 @@
     list_files: yes
   register: archive_contents
 
-
-#### CONFIGURATION OF VAULT INI #####
-
-- name: Set vault.ini Into Place
-  command: cp "{{ base_path }}"/Vault.ini "{{ vault_ini_path }}"
-
-- name: Write Vault address in Vault.ini
-  ansible.builtin.lineinfile:
-    path: "{{ vault_ini_path }}"
-    regexp: '^(.*)ADDRESS=1.1.1.1(.*)$'
-    line: ADDRESS= "{{ vault_address }}"
-    owner: root
-    group: root
-    mode: '0644'
-
 ####API Auth and User Provision Section #####
 
 - name: Login to Vault API
@@ -101,7 +86,13 @@
       UserName: "{{ new_cp_user }}" 
       InitialPassword: "{{ new_cp_pw }}"
       UserType: "{{ user_type }}"
-      ChangePasswordOnTheNextLogon: "{{ password_change_bool }}"
+      ChangePassOnNextLogon: no
+      EnableUser: yes
+      PasswordNeverExpires: yes
+      VaultAuthorization:
+        - AuditUsers
+      Location: "\\Applications"
+
     validate_certs: "{{ logon_ssl_validation }}"
   register: add_user_results
 - debug:
@@ -109,13 +100,35 @@
 
 #### CONFIGURATION OF CRED FILE #####
 
+- name: Create /etc/opt/CARKaim/vault
+  ansible.builtin.file:
+    path: /etc/opt/CARKaim/vault
+    state: directory
+    mode: '0755'
+
 - name:  Execute Credential File with proper permissions
   file:
     path: "{{ create_credfile_path }}"
     mode: 0755
 
 - name: Create Credential File
-  ansible.builtin.shell: /cp_install/CreateCredFile "{{ credfile_path }}" Password -Username "{{ new_cp_user }}"  -Password "{{ new_cp_pw }}"-Hostname -EntropyFile
+  ansible.builtin.shell: /cp_install/CreateCredFile "{{ credfile_path }}" Password -Username "Administrator"  -Password "CyberArk11@@" -Hostname -EntropyFile
+
+
+#### CONFIGURATION OF VAULT INI #####
+
+
+- name: Set vault.ini Into Place
+  command: cp "{{ base_path }}"/Vault.ini "{{ vault_ini_path }}"
+
+- name: Write Vault address in Vault.ini
+  ansible.builtin.lineinfile:
+    path: "{{ vault_ini_path }}"
+    regexp: '^(.*)ADDRESS=1.1.1.1(.*)$'
+    line: ADDRESS={{ vault_address }}
+    owner: root
+    group: root
+    mode: '0644'
 
 #### CONFIGURATION OF AIMPARAMS #####
 
