@@ -1,0 +1,6 @@
+---
+- hosts: all
+  name: Install configure cp
+  become: yes
+  roles:
+    - cp-configure
