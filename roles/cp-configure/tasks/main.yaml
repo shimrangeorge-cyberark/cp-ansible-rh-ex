@@ -106,13 +106,16 @@
     state: directory
     mode: '0755'
 
-- name:  Execute Credential File with proper permissions
+- name:  Set Credential File with proper permissions
   file:
     path: "{{ create_credfile_path }}"
     mode: 0755
 
-- name: Create Credential File
-  ansible.builtin.shell: /cp_install/CreateCredFile "{{ credfile_path }}" Password -Username "Administrator"  -Password "CyberArk11@@" -Hostname -EntropyFile
+- name: Create Admin Credential File
+  ansible.builtin.shell: /cp_install/CreateCredFile "{{ admin_credfile_path }}" Password -Username "{{ admin_user }}"  -Password "{{ admin_pw }}" -Hostname -EntropyFile
+
+- name: Create Prov_ Credential File
+  ansible.builtin.shell: /cp_install/CreateCredFile "{{ app_credfile_path }}" Password -Username "{{ new_cp_user }}"  -Password "{{ new_cp_pw }}" -Hostname -EntropyFile
 
 
 #### CONFIGURATION OF VAULT INI #####
@@ -133,7 +136,7 @@
 #### CONFIGURATION OF AIMPARAMS #####
 
 
-- name: Copy Aimparams to proper directory
+- name: Copy Aimparms to proper directory
   copy: remote_src=True src=/cp_install/aimparms.sample dest="{{ aimparms_path }}"
 
 - name: Accept EULA in aimparams
@@ -164,11 +167,11 @@
     group: root
     mode: '0644'
 
-- name: Set CredFile Path  in Aimparams
+- name: Set CredFile Admin Path  in Aimparams
   ansible.builtin.lineinfile:
     path: "{{ aimparms_path }}"
     regexp: '^(.*)CredFilePath=(.*)$'
-    line: CredFilePath="{{ credfile_path }}"
+    line: CredFilePath="{{ admin_credfile_path }}"
     owner: root
     group: root
     mode: '0644'
