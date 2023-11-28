@@ -1,0 +1,22 @@
+
+- name: Uninstall  
+  command: dnf remove CARKaim
+  register: cp_removal
+
+- Remove CP user
+
+- name: Remove CP config files
+  file:
+    path: '/etc/opt/CARKaim'
+    state: absent
+
+- name: Remove /var/opt/CARKaim
+  file:
+    path: '/var/opt/CARKaim'
+    state: absent
+
+
+- name: Remove AimParams
+  file:
+    path: '/var/tmp/aimparms'
+    state: absent
