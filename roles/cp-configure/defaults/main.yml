@@ -18,13 +18,13 @@ cp_rpm_path: /cp_install/CARKaim-13.00.02.4.x86_64.rpm
 auth_type: Cyberark
 logon_url: "https://ec2-34-216-15-14.us-west-2.compute.amazonaws.com/PasswordVault/WebServices/auth/{{ auth_type }}/CyberArkAuthenticationService.svc/Logon"
 admin_user: administrator
-admin_pw: <>
+admin_pw: CyberArk11@@
 
 #UserAdd url
 
 add_user_url: https://ec2-34-216-15-14.us-west-2.compute.amazonaws.com/PasswordVault/API/Users
 new_cp_user: Prov_{{ansible_hostname}} 
-new_cp_pw: <>
+new_cp_pw: CyberArk11@@
 user_type: AppProvider
 
 #Boolean
