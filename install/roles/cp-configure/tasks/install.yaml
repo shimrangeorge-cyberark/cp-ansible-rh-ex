@@ -1,0 +1,215 @@
+####PACKAGE INSTALLATION #####
+
+- name: install pip3
+  yum: name=python3-pip state=present 
+
+- name : Install unzip package
+  yum: name=unzip state=present update_cache=true
+
+- name: Install boto3 and botocore with pip3 module
+  ansible.builtin.pip:
+    name: 
+      - boto3
+      - botocore
+
+- name: Creates directory to install CP
+  ansible.builtin.file:
+    path: /cp_install
+    state: directory
+
+#### S3 BUCKET (this playbook assumes using S3 bucket to store RPM) #####
+
+- name: List Objects in CP bucket
+  amazon.aws.aws_s3:
+    bucket: "{{cp_s3_bucket}}"
+    mode: list
+    aws_access_key:  "{{ lookup('env','AWS_ACCESS_KEY') }}"
+    aws_secret_key: "{{ lookup('env','AWS_SECRET_ACCESS_KEY') }}"
+  register: objects_in_ansible_cp_bucket
+
+- set_fact:
+    cp_zip: "{{ cp_file }}"
+
+- set_fact:
+    s3_bucket_has_cp_zip: "{{cp_zip in objects_in_ansible_cp_bucket.s3_keys}}"
+
+- name: Download CP Zip File from S3
+  when: s3_bucket_has_cp_zip
+  amazon.aws.aws_s3:
+    bucket: "{{ cp_s3_bucket }}"
+    object: "{{ cp_zip }}"
+    dest: /tmp/Secrets Manager Credential Providers_13.0_1700079387055.zip
+    mode: get
+    aws_access_key:  "{{ lookup('env','AWS_ACCESS_KEY') }}"
+    aws_secret_key: "{{ lookup('env','AWS_SECRET_ACCESS_KEY') }}"
+
+- name: Extract files into CP directory
+  unarchive: 
+    src: /tmp/Secrets Manager Credential Providers_13.0_1700079387055.zip
+    dest: "{{ base_path }}"
+    remote_src: yes
+    list_files: yes
+  register: archive_contents
+
+####API Auth and User Provision Section #####
+
+- name: Login to Vault API
+  uri:
+    url: "{{ logon_url }}"
+    method: POST
+    body_format: json
+    body:
+      username: "{{ admin_user }}" 
+      password: "{{ admin_pw }}"
+      #v2 concurrent_sessions= " {{ concurrent_session_bool }} "
+    validate_certs: "{{ logon_ssl_validation }}"
+  register: login_json_results
+- debug:
+     var: login_json_results
+
+- name: Set Login token
+  set_fact: 
+    ca_login_token: "{{ login_json_results.json.CyberArkLogonResult }}"
+- debug:
+     var: ca_login_token  
+
+- name: Add User API
+  uri:
+    url: "{{ add_user_url }}"
+    method: POST
+    headers:
+      authorization: "{{ ca_login_token }}"
+    body_format: json
+    status_code: 200, 201, 208, 409
+    body:
+      UserName: "{{ new_cp_user }}" 
+      InitialPassword: "{{ new_cp_pw }}"
+      UserType: "{{ user_type }}"
+      ChangePassOnNextLogon: no
+      EnableUser: yes
+      PasswordNeverExpires: yes
+      VaultAuthorization:
+        - AuditUsers
+      Location: "\\Applications"
+
+    validate_certs: "{{ logon_ssl_validation }}"
+  register: add_user_results
+
+- debug:
+     var: add_user_results
+
+- name: Get User ID for Provider user
+  set_fact: 
+    aim_prov_user_id: "{{ add_user_results.json.id }}"
+- debug:
+     var:  aim_prov_user_id
+
+#### CONFIGURATION OF CRED FILE #####
+
+- name: Create /etc/opt/CARKaim/vault
+  ansible.builtin.file:
+    path: /etc/opt/CARKaim/vault
+    state: directory
+    mode: '0755'
+
+- name:  Set Credential File with proper permissions
+  file:
+    path: "{{ create_credfile_path }}"
+    mode: 0755
+
+- name: Create Admin Credential File
+  ansible.builtin.shell: /cp_install/CreateCredFile "{{ admin_credfile_path }}" Password -Username "{{ admin_user }}"  -Password "{{ admin_pw }}" -Hostname -EntropyFile
+
+- name: Create Prov_ Credential File
+  ansible.builtin.shell: /cp_install/CreateCredFile "{{ app_credfile_path }}" Password -Username "{{ new_cp_user }}"  -Password "{{ new_cp_pw }}" -Hostname -EntropyFile
+
+
+#### CONFIGURATION OF VAULT INI #####
+
+
+- name: Set vault.ini Into Place
+  command: cp "{{ base_path }}"/Vault.ini "{{ vault_ini_path }}"
+
+- name: Write Vault address in Vault.ini
+  ansible.builtin.lineinfile:
+    path: "{{ vault_ini_path }}"
+    regexp: '^(.*)ADDRESS=1.1.1.1(.*)$'
+    line: ADDRESS={{ vault_address }}
+    owner: root
+    group: root
+    mode: '0644'
+
+#### CONFIGURATION OF AIMPARAMS #####
+
+- name: Copy Aimparms to proper directory
+  copy: remote_src=True src=/cp_install/aimparms.sample dest="{{ aimparms_path }}"
+
+- name: Accept EULA in aimparams
+  ansible.builtin.lineinfile:
+    path: "{{ aimparms_path }}"
+    regexp: '^(.*)AcceptCyberArkEULA=No(.*)$'
+    line: AcceptCyberArkEULA=Yes
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Uncomment Create Vault Environment
+  ansible.builtin.lineinfile:
+    path: "{{ aimparms_path }}"
+    regexp: '^(.*)#CreateVaultEnvironment=yes(.*)$'
+    line: CreateVaultEnvironment=yes
+    owner: root
+    group: root
+    mode: '0644'
+
+
+- name: Set Vault INI in Aimparams
+  ansible.builtin.lineinfile:
+    path: "{{ aimparms_path }}"
+    regexp: '^(.*)VaultFilePath=(.*)$'
+    line: VaultFilePath="{{ vault_ini_path }}"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Set CredFile Admin Path  in Aimparams
+  ansible.builtin.lineinfile:
+    path: "{{ aimparms_path }}"
+    regexp: '^(.*)CredFilePath=(.*)$'
+    line: CredFilePath="{{ admin_credfile_path }}"
+    owner: root
+    group: root
+    mode: '0644'
+
+#### CP INSTALLATION #####
+
+- name: Install CP
+  package: 
+    name: "{{ cp_rpm_path }}" 
+    state: present
+    disable_gpg_check: "{{ disable_gpg_check }}"
+  register: install_result
+#- name: Install CP RPM  
+ # ansible.builtin.shell: rpm -i /cp_install/"{{ cp_rpm }}"
+- debug:
+     var: install_result 
+
+- name: Start Provider Service
+  service: 
+   name: aimprv 
+   state: started
+
+- name: Check CP status
+  command: systemctl status aimprv.service
+  register: aimprv_result
+
+- debug:
+     var: aimprv_result
+
+
+#### CLEANUP #####
+
+- name: Remove /cp_install
+  file:
+    path: '/cp_install'
+    state: absent

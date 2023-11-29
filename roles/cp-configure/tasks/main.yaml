@@ -1,15 +1,14 @@
-    - name: Verify status of aimprv service initially
-      command: service aimprv status
-      register: service_already_running
-      ignore_errors: yes
-      changed_when: false
-      args:
-        warn: false
+- name: Verify status of aimprv service initially
+  command: systemctl status aimprv.service
+  register: service_already_running
+  ignore_errors: yes
+  changed_when: false
 
-    - debug: msg="status of service RC={{service_already_running.rc}}"
 
-    - import_tasks: installAIMProvider.yml
-      when: (state == "present" and service_already_running.rc != 0)
+- debug: msg="status of service RC={{service_already_running.rc}}"
 
-    - import_tasks: uninstallAIMProvider.yml
-      when: (state == "absent" and service_already_running.rc == 0)
+- import_tasks: install.yaml
+  when: (service_already_running.rc != 0)
+
+- import_tasks: uninstall.yaml
+  when: (service_already_running.rc == 0)

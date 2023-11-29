@@ -34,15 +34,6 @@ user_type: AppProvider
 #DeleteUser url
 delete_user_base: https://"{{ base_pas_url }}"/PasswordVault/API/Users/
 
-#Account creation:
-
- 
-account_platform_type : UnixSSH
-
-cyberark_account_type: password
-cyberark_account_secret: DarrendaKhanMan!
-
-sample_script_path: /tmp/remote.sh
 
 #Boolean
 
