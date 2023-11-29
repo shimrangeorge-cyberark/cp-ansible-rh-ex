@@ -181,7 +181,7 @@
       name: shimran-test-{{ ansible_hostname}}
       platformId: "{{ account_platform_type }}"
       address: "None"
-      Username: "{{ ansible_hostname}}-user"
+      Username: " {{ cyberark_account_name }}"
       SafeName: Safe-{{ ansible_hostname }}
       secretType: "{{ cyberark_account_type }}"
       secret: "{{ cyberark_account_secret }}"
@@ -343,7 +343,7 @@
       /opt/CARKaim/sdk/clipasswordsdk GetPassword \
       -p AppDescs.AppID=app_{{ ansible_hostname }} \
       -p QueryFormat=2 \
-      -p Query="Safe=Safe-{{ ansible_hostname }};UserName="{{ ansible_hostname}}-user"" \
+      -p Query="Safe=Safe-{{ ansible_hostname }};UserName="{{ cyberark_account_name }}"" \
       -p Reason="Darren Khan, SE extrodinaire!" \
       -o Password
     mode: '0700'

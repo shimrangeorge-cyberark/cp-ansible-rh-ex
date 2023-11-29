@@ -37,10 +37,10 @@ delete_user_base: https://"{{ base_pas_url }}"/PasswordVault/API/Users/
 #Account creation:
 
  
-account_platform_type : UnixSSH
-
+account_platform_type: UnixSSH
+cyberark_account_name: account--{{ ansible_hostname }}
 cyberark_account_type: password
-cyberark_account_secret: DarrendaKhanMan!
+cyberark_account_secret: Khan!Artist@
 
 sample_script_path: /tmp/remote.sh
 
