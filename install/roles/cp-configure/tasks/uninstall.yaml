@@ -13,7 +13,7 @@
 - debug:
      var: login_json_results
 - debug:
-     var: "{{ aim_prov_user_id }}"
+     var: "{{ 'aim_prov_user_id' }}"
 
 - name: Set Login token
   set_fact: 
@@ -23,11 +23,11 @@
 
 - name: Remove CP user from Vault
   uri: 
-    url: "{{ base_pas_url }}/PasswordVault/API/Users/hostvars.aim_prov_user_id"
+    url: "{{ base_pas_url }}/PasswordVault/API/Users/{{ aim_prov_user_id }}"
     method: DELETE
     validate_certs: "{{ logon_ssl_validation }}"
     headers:
-      authorization: "hostvars{{ ca_login_token }}"
+      authorization: "{{ ca_login_token }}"
   register: remove_user_results
 
 - debug:

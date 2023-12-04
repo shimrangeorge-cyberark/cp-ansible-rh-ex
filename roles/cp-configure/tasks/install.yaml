@@ -82,7 +82,7 @@
     headers:
       authorization: "{{ ca_login_token }}"
     body_format: json
-    status_code: 200, 201, 208, 409
+    status_code: 200, 201, 208
     body:
       UserName: "{{ new_cp_user }}" 
       InitialPassword: "{{ new_cp_pw }}"
@@ -96,6 +96,22 @@
 
     validate_certs: "{{ logon_ssl_validation }}"
   register: add_user_results
+
+- debug:
+    var: add_user_id
+
+- name: get user id
+  set_fact: 
+    aim_prov_user_id: "{{ add_user_results.json.id }}"
+
+- debug:
+    var: aim_prov_user_id
+
+- name: Put UserID in local file 
+  copy:
+    content: "{{ add_user_results.json.id }}"
+    dest: "{{ cp_ansible_user_id_path }}"
+
 
 - debug:
      var: add_user_results
