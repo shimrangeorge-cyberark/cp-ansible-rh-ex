@@ -12,9 +12,16 @@
       - boto3
       - botocore
 
+#### DIRECTORY CREATIONS ####
+
 - name: Creates directory to install CP
   ansible.builtin.file:
-    path: /cp_install
+    path: "{{ base_path }}"
+    state: directory
+
+- name: Creates directory for Ansible Administration tasks
+  ansible.builtin.file:
+    path: "{{ cp_ansible_directory_path }}"
     state: directory
 
 #### S3 BUCKET (this playbook assumes using S3 bucket to store RPM) #####
@@ -64,12 +71,14 @@
       #v2 concurrent_sessions= " {{ concurrent_session_bool }} "
     validate_certs: "{{ logon_ssl_validation }}"
   register: login_json_results
+
 - debug:
      var: login_json_results
 
 - name: Set Login token
   set_fact: 
     ca_login_token: "{{ login_json_results.json.CyberArkLogonResult }}"
+
 - debug:
      var: ca_login_token  
 
@@ -80,7 +89,7 @@
     headers:
       authorization: "{{ ca_login_token }}"
     body_format: json
-    status_code: 200, 201, 208, 409
+    status_code: 200, 201, 208
     body:
       UserName: "{{ new_cp_user }}" 
       InitialPassword: "{{ new_cp_pw }}"
@@ -91,7 +100,6 @@
       VaultAuthorization:
         - AuditUsers
       Location: "\\Applications"
-
     validate_certs: "{{ logon_ssl_validation }}"
   register: add_user_results
 
@@ -101,10 +109,150 @@
 - name: Get User ID for Provider user
   set_fact: 
     aim_prov_user_id: "{{ add_user_results.json.id }}"
+
 - debug:
      var:  aim_prov_user_id
 
-#### CONFIGURATION OF CRED FILE #####
+
+- name: Put UserID in local file 
+  copy:
+    content: "{{ aim_prov_user_id }}"
+    dest: "{{ cp_ansible_user_id_file }}"
+
+- name: Create SAFE for CP
+  uri: 
+    url: "{{ base_pas_url }}/PasswordVault/API/Safes"
+    method: POST
+    headers:
+      authorization: "{{ ca_login_token }}"
+    status_code: 200, 201, 208, 409
+    body_format: json
+    body:
+      safeName: "Safe-{{ ansible_hostname }}"
+      description: Safe for {{ ansible_hostname }}
+    validate_certs: "{{ logon_ssl_validation }}"
+  register: safe_creation_results
+
+- debug:
+     var: safe_creation_results
+
+- name: Create CP-hosted application
+  uri: 
+    url: "{{ base_pas_url }}/PasswordVault/WebServices/PIMServices.svc/Applications/ "
+    method: POST
+    headers:
+      authorization: "{{ ca_login_token }}"
+    status_code: 200, 201, 208, 409
+    body_format: json
+    body:
+      application:
+        AppID: "app_{{ ansible_hostname }}"
+        Description: CP-hosted for application host {{ ansible_hostname }}
+    validate_certs: "{{ logon_ssl_validation }}"
+
+- name: Add Auth methods CP-hosted application (Private IP)
+  uri: 
+    url: "{{ base_pas_url }}/PasswordVault/WebServices/PIMServices.svc/Applications/app_{{ ansible_hostname }}/Authentications"
+    method: POST
+    headers:
+      authorization: "{{ ca_login_token }}"
+    status_code: 200, 201, 208, 409
+    body_format: json
+    body:
+      authentication:
+        AuthType: machineAddress
+        AuthValue: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}"
+    validate_certs: "{{ logon_ssl_validation }}"
+
+
+# - name: Search Plaforms to CyberArk
+#   uri: 
+#     url: "{{ base_pas_url }}/PasswordVault/API/platforms?Search=Unix"
+#     method: GET
+#     headers:
+#       authorization: "{{ ca_login_token }}"
+#     validate_certs: "{{ logon_ssl_validation }}"
+#   register: platform_results
+# - debug:
+#      var: platform_results
+
+- name: Get Plaform to CyberArk
+  uri: 
+    url: "{{ base_pas_url }}/PasswordVault/API/Platforms/{{ account_platform_type }}"
+    method: GET
+    headers:
+      authorization: "{{ ca_login_token }}"
+    validate_certs: "{{ logon_ssl_validation }}"
+  register: platform_results
+- debug:
+     var: platform_results
+
+
+- name: Add Account to CyberArk
+  uri: 
+    url: "{{ base_pas_url }}/PasswordVault/API/Accounts/"
+    method: POST
+    headers:
+      authorization: "{{ ca_login_token }}"
+    status_code: 200, 201, 208, 409
+    body_format: json
+    body:
+      name: shimran-test-{{ ansible_hostname}}
+      platformId: "{{ account_platform_type }}"
+      address: "None"
+      Username: " {{ cyberark_account_name }}"
+      SafeName: Safe-{{ ansible_hostname }}
+      secretType: "{{ cyberark_account_type }}"
+      secret: "{{ cyberark_account_secret }}"
+
+    validate_certs: "{{ logon_ssl_validation }}"
+
+
+
+# DOC: https://docs.cyberark.com/AAM-CP/Latest/en/Content/CP%20and%20ASCP/Testing-Installation.htm?TocPath=Installation%7CCredential%20Provider%7C_____6
+
+- name: Add PROV USER CP for Safe
+  uri: 
+    url: "{{ base_pas_url }}/PasswordVault/API/Safes/Safe-{{ ansible_hostname }}/Members/"
+    method: POST
+    headers:
+      authorization: "{{ ca_login_token }}"
+    status_code: 200, 201, 208, 409
+    body_format: json
+    body:
+      memberName: "{{ new_cp_user }}"
+      permissions:
+        useAccounts: true
+        retrieveAccounts: true
+        listAccounts: true
+        viewSafeMembers: true
+        accessWithoutConfirmation: true
+    validate_certs: "{{ logon_ssl_validation }}"
+  register: safe_creation_results
+
+- debug:
+     var: safe_creation_results
+
+- name: Add CPhost Application as member  for Safe
+  uri: 
+    url: "{{ base_pas_url }}/PasswordVault/API/Safes/Safe-{{ ansible_hostname }}/Members/"
+    method: POST
+    headers:
+      authorization: "{{ ca_login_token }}"
+    status_code: 200, 201, 208, 409
+    body_format: json
+    body:
+      memberName: app_{{ ansible_hostname }} 
+      permissions:
+        useAccounts: true
+        retrieveAccounts: true
+        listAccounts: true
+        viewSafeMembers: true
+        accessWithoutConfirmation: true
+    validate_certs: "{{ logon_ssl_validation }}"
+  register: safe_creation_results
+
+### CONFIGURATION OF CRED FILE #####
 
 - name: Create /etc/opt/CARKaim/vault
   ansible.builtin.file:
@@ -181,7 +329,7 @@
     group: root
     mode: '0644'
 
-#### CP INSTALLATION #####
+#### START CP ####
 
 - name: Install CP
   package: 
@@ -189,8 +337,7 @@
     state: present
     disable_gpg_check: "{{ disable_gpg_check }}"
   register: install_result
-#- name: Install CP RPM  
- # ansible.builtin.shell: rpm -i /cp_install/"{{ cp_rpm }}"
+
 - debug:
      var: install_result 
 
@@ -206,6 +353,60 @@
 - debug:
      var: aimprv_result
 
+#### CREATE APP Add Hash Auth #####
+
+- name: Copy & Create File.
+  copy:
+    dest: "{{ sample_script_path }}"
+    content: |
+      #!/bin/bash
+      /opt/CARKaim/sdk/clipasswordsdk GetPassword \
+      -p AppDescs.AppID=app_{{ ansible_hostname }} \
+      -p QueryFormat=2 \
+      -p Query="Safe=Safe-{{ ansible_hostname }};UserName="{{ cyberark_account_name }}"" \
+      -p Reason="Darren Khan, SE extrodinaire!" \
+      -o Password
+    mode: '0700'
+
+- name: Change permissions /opt/CARKaim/bin
+  ansible.builtin.file:
+    path: /opt/CARKaim/bin
+    state: directory
+    mode: '0700'
+
+- name: Change permissions /opt/CARKaim/sdk/
+  ansible.builtin.file:
+    path: /opt/CARKaim/sdk/
+    state: directory
+    mode: '0700'
+
+- name: Create hash to registered var
+  command: /opt/CARKaim/bin/aimgetappinfo GetHash -FilePath "{{ sample_script_path }}"
+  register: hashed_script_value
+
+- debug:
+    var: hashed_script_value.stdout
+
+
+- name: Add Auth methods CP-hosted application (Hash)
+  uri: 
+    url: "{{ base_pas_url }}/PasswordVault/WebServices/PIMServices.svc/Applications/app_{{ ansible_hostname }}/Authentications"
+    method: POST
+    headers:
+      authorization: "{{ ca_login_token }}"
+    status_code: 200, 201, 208, 409
+    body_format: json
+    body:
+      authentication:
+        AuthType: Hash
+        AuthValue: "{{ hashed_script_value.stdout }}"
+        Comment: "via API Ansible"
+    validate_certs: "{{ logon_ssl_validation }}"
+  register: hash_creation_results
+
+- debug:
+    var: hash_creation_results
+
 
 #### CLEANUP #####
 
@@ -213,3 +414,4 @@
   file:
     path: '/cp_install'
     state: absent
+  
