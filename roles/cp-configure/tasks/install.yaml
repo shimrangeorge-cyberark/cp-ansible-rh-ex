@@ -12,9 +12,16 @@
       - boto3
       - botocore
 
+#### DIRECTORY CREATIONS ####
+
 - name: Creates directory to install CP
   ansible.builtin.file:
-    path: /cp_install
+    path: "{{ base_path }}"
+    state: directory
+
+- name: Creates directory for Ansible Administration tasks
+  ansible.builtin.file:
+    path: "{{ cp_ansible_directory_base }}"
     state: directory
 
 #### S3 BUCKET (this playbook assumes using S3 bucket to store RPM) #####

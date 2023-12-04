@@ -17,8 +17,8 @@ admin_credfile_path: /cp_install/admin.cred
 app_credfile_path: /etc/opt/CARKaim/vault/appprovideruser.cred
 create_credfile_path: /cp_install/CreateCredFile
 cp_rpm_path: /cp_install/CARKaim-13.00.02.4.x86_64.rpm
-cp_ansible_diectory_base: /etc/opt/CARK-ansible
-cp_ansible_user_id_path: "{{ cp_ansible_diectory_base }}/aimprov_user_id.txt" 
+cp_ansible_directory_base: /etc/opt/CARK-ansible
+cp_ansible_user_id_path: "{{ cp_ansible_directory_base }}/aimprov_user_id.txt" 
 
 #API logon
 auth_type: Cyberark
