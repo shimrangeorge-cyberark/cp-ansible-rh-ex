@@ -95,7 +95,7 @@
 
 
 - set_fact:
-    random_safe_number: "{{ 10000 | random }}"
+    random_safe_number: "{{ 1000000 | random }}"
   run_once: yes
 
 # Due to Safe Retention Policy this cannot be deleted automatically. Will be renamed to DELETE
