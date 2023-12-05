@@ -138,7 +138,7 @@
 
 - name: Create CP-hosted application
   uri: 
-    url: "{{ base_pas_url }}/PasswordVault/WebServices/PIMServices.svc/Applications/ "
+    url: "{{ base_pas_url }}/PasswordVault/WebServices/PIMServices.svc/Applications/"
     method: POST
     headers:
       authorization: "{{ ca_login_token }}"
@@ -146,13 +146,18 @@
     body_format: json
     body:
       application:
-        AppID: "app_{{ ansible_hostname }}"
+        AppID: "app-{{ ansible_hostname }}"
         Description: CP-hosted for application host {{ ansible_hostname }}
     validate_certs: "{{ logon_ssl_validation }}"
+  register: app_creation_results
+
+- debug:
+     var: app_creation_results
+
 
 - name: Add Auth methods CP-hosted application (Private IP)
   uri: 
-    url: "{{ base_pas_url }}/PasswordVault/WebServices/PIMServices.svc/Applications/app_{{ ansible_hostname }}/Authentications"
+    url: "{{ base_pas_url }}/PasswordVault/WebServices/PIMServices.svc/Applications/app-{{ ansible_hostname }}/Authentications"
     method: POST
     headers:
       authorization: "{{ ca_login_token }}"
@@ -206,10 +211,23 @@
       secret: "{{ cyberark_account_secret }}"
 
     validate_certs: "{{ logon_ssl_validation }}"
+  register: account_creation_results
 
+- debug:
+    var: account_creation_results
 
+- name: Account ID created
+  set_fact: 
+    vault_account_id: "{{ account_creation_results.json.id }}"
+
+- name: Put AccountID in local file 
+  copy:
+    content: "{{ vault_account_id }}"
+    dest: "{{ cp_ansible_account_id_file }}"
 
 # DOC: https://docs.cyberark.com/AAM-CP/Latest/en/Content/CP%20and%20ASCP/Testing-Installation.htm?TocPath=Installation%7CCredential%20Provider%7C_____6
+
+# Do not allow 409, it needs to grab a user ID to store on application
 
 - name: Add PROV USER CP for Safe
   uri: 
@@ -217,7 +235,7 @@
     method: POST
     headers:
       authorization: "{{ ca_login_token }}"
-    status_code: 200, 201, 208, 409
+    status_code: 200, 201, 208 
     body_format: json
     body:
       memberName: "{{ new_cp_user }}"
@@ -242,7 +260,7 @@
     status_code: 200, 201, 208, 409
     body_format: json
     body:
-      memberName: app_{{ ansible_hostname }} 
+      memberName: app-{{ ansible_hostname }} 
       permissions:
         useAccounts: true
         retrieveAccounts: true
@@ -361,7 +379,7 @@
     content: |
       #!/bin/bash
       /opt/CARKaim/sdk/clipasswordsdk GetPassword \
-      -p AppDescs.AppID=app_{{ ansible_hostname }} \
+      -p AppDescs.AppID=app-{{ ansible_hostname }} \
       -p QueryFormat=2 \
       -p Query="Safe=Safe-{{ ansible_hostname }};UserName="{{ cyberark_account_name }}"" \
       -p Reason="Darren Khan, SE extrodinaire!" \
@@ -390,7 +408,7 @@
 
 - name: Add Auth methods CP-hosted application (Hash)
   uri: 
-    url: "{{ base_pas_url }}/PasswordVault/WebServices/PIMServices.svc/Applications/app_{{ ansible_hostname }}/Authentications"
+    url: "{{ base_pas_url }}/PasswordVault/WebServices/PIMServices.svc/Applications/app-{{ ansible_hostname }}/Authentications"
     method: POST
     headers:
       authorization: "{{ ca_login_token }}"

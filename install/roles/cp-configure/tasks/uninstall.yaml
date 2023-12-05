@@ -1,3 +1,4 @@
+### Vault Cleanup via API
 
 - name: Login to Vault API for Deletion
   uri:
@@ -12,8 +13,7 @@
   register: login_json_results
 - debug:
      var: login_json_results
-- debug:
-     var: "{{ 'aim_prov_user_id' }}"
+
 
 - name: Set Login token
   set_fact: 
@@ -21,19 +21,104 @@
 - debug:
      var: ca_login_token  
 
+- name: Read File for User ID
+  slurp:
+    src: "{{ cp_ansible_user_id_file }}"
+  register: user_id_extraction
+
+- name: Set User ID
+  set_fact: 
+    user_id: "{{ user_id_extraction['content'] | b64decode }}"
+  
+- debug:
+     var: user_id 
+
 - name: Remove CP user from Vault
   uri: 
-    url: "{{ base_pas_url }}/PasswordVault/API/Users/{{ aim_prov_user_id }}"
+    url: "{{ base_pas_url }}/PasswordVault/API/Users/{{ user_id }}"
     method: DELETE
     validate_certs: "{{ logon_ssl_validation }}"
     headers:
       authorization: "{{ ca_login_token }}"
+    status_code: 200, 201, 208, 204, 404
   register: remove_user_results
 
 - debug:
      var: remove_user_results
 
-- name: Remove the Apache package
+
+- name: Read File for account ID
+  slurp:
+    src: "{{ cp_ansible_account_id_file }}"
+  register: account_id_extraction
+
+- name: Set Account ID
+  set_fact: 
+    account_id: "{{ account_id_extraction['content'] | b64decode }}"
+  
+- debug:
+     var: account_id 
+
+
+- name: Remove Account from Vault
+  uri: 
+    url: "{{ base_pas_url }}/PasswordVault/API/Accounts/{{ account_id }}"
+    method: DELETE
+    validate_certs: "{{ logon_ssl_validation }}"
+    headers:
+      authorization: "{{ ca_login_token }}"
+    status_code: 200, 201, 208, 204, 404
+  register: remove_app_results
+
+- name: Remove Application from Vault
+  uri: 
+    url: "{{ base_pas_url }}/PasswordVault/WebServices/PIMServices.svc/Applications/app-{{ ansible_hostname }}/"
+    method: DELETE
+    validate_certs: "{{ logon_ssl_validation }}"
+    headers:
+      authorization: "{{ ca_login_token }}"
+    status_code: 200, 201, 208, 204, 404
+  register: remove_app_results
+
+- debug:
+     var: remove_app_results
+
+- name: Remove Prov User from Safe
+  uri: 
+    url: "{{ base_pas_url }}/PasswordVault/api/Safes/Safe-{{ ansible_hostname }}/Members/app-{{ ansible_hostname }}/"
+    method: DELETE
+    validate_certs: "{{ logon_ssl_validation }}"
+    headers:
+      authorization: "{{ ca_login_token }}"
+    status_code: 200, 201, 208, 204, 404
+  register: remove_app_results
+
+
+- set_fact:
+    random_safe_number: "{{ 10000 | random }}"
+  run_once: yes
+
+# Due to Safe Retention Policy this cannot be deleted automatically. Will be renamed to DELETE
+- name: Move Safe from Vault to be marked for Manual Deletion
+  uri: 
+    url: "{{ base_pas_url }}/PasswordVault/API/Safes/Safe-{{ ansible_hostname }}"
+    method: PUT
+    validate_certs: "{{ logon_ssl_validation }}"
+    headers:
+      authorization: "{{ ca_login_token }}"
+    status_code: 200, 201, 208, 204, 404
+    body_format: json
+    body:
+      SafeName: DELETE-MANUALLY-SAFE-{{ random_safe_number }}
+      numberOfVersionsRetention: 1
+  register: update_safe_results
+
+- debug:
+    var: update_safe_results
+
+#### CLEANUP DIRECTORIES ####
+
+- name: Remove the CARKaim package
   ansible.builtin.dnf:
     name: CARKaim
     state: absent
@@ -41,6 +126,11 @@
 - name: Remove CP config files
   file:
     path: '/etc/opt/CARKaim'
+    state: absent
+
+- name: Remove Ansible Administration 
+  file:
+    path: '/etc/opt/CARKaim-ansible'
     state: absent
 
 - name: Remove AppProvider Confs
