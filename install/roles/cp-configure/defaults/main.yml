@@ -46,7 +46,7 @@ delete_user_base: https://"{{ base_pas_url }}"/PasswordVault/API/Users/
 account_platform_type: UnixSSH
 cyberark_account_name: account--{{ ansible_hostname }}
 cyberark_account_type: password
-cyberark_account_secret: Khan!Artist@
+cyberark_account_secret: BobL0blaw11@@!
 
 #Boolean
 

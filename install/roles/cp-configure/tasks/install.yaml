@@ -193,7 +193,7 @@
      var: platform_results
 
 
-- name: Add Account to CyberArk
+- name: Add Account to CyberArk via API
   uri: 
     url: "{{ base_pas_url }}/PasswordVault/API/Accounts/"
     method: POST
@@ -209,6 +209,9 @@
       SafeName: Safe-{{ ansible_hostname }}
       secretType: "{{ cyberark_account_type }}"
       secret: "{{ cyberark_account_secret }}"
+      secretManagement : {
+        automaticManagementEnabled": true,
+          }
 
     validate_certs: "{{ logon_ssl_validation }}"
   register: account_creation_results
