@@ -28,7 +28,7 @@ sample_script_path: "{{ cp_ansible_directory_path }}/remote.sh"
 auth_type: Cyberark
 logon_url: "https://ec2-34-216-15-14.us-west-2.compute.amazonaws.com/PasswordVault/WebServices/auth/{{ auth_type }}/CyberArkAuthenticationService.svc/Logon"
 admin_user: administrator
-admin_pw: CyberArk11@@
+admin_pw: Cyberark
 
 #UserAdd url
 
