@@ -2,12 +2,15 @@
 
 
 # defaults file for cp-configure
+#INSERT CONFIG HERE
 
-base_pas_url: https://ec2-34-216-15-14.us-west-2.compute.amazonaws.com
-cp_file: AAM-RHELinux-Intel64-Rls-v13.0.2.zip
-cp_s3_bucket: citi-ansible-cp
-vault_address: 54.184.200.65
+base_pas_url:  # e.g. https://ec2-34-216-15-14.us-west-2.compute.amazonaws.com
+cp_file:    # e.g. AAM-RHELinux-Intel64-Rls-v13.0.2.zip
+cp_s3_bucket: # assumes zip file is stored in an S3 bucket 
+vault_address:  #e.g. 54.184.200.65
 cp_rpm: CARKaim-13.00.02.4.x86_64.rpm
+admin_user:   # e.g. administrator user for CyberArk Vault
+admin_pw:  #e.g. Cyberark administrator password
 
 #path defaults
 base_path: /cp_install
@@ -16,7 +19,7 @@ vault_ini_path: /etc/opt/CARKaim/vault/Vault.ini
 admin_credfile_path: /cp_install/admin.cred
 app_credfile_path: /etc/opt/CARKaim/vault/appprovideruser.cred
 create_credfile_path: /cp_install/CreateCredFile
-cp_rpm_path: /cp_install/CARKaim-13.00.02.4.x86_64.rpm
+cp_rpm_path: /cp_install/"{{"
 
 ### ANSIBLE ADMINISTRATION ###
 cp_ansible_directory_path: /etc/opt/CARK-ansible
@@ -27,8 +30,7 @@ sample_script_path: "{{ cp_ansible_directory_path }}/remote.sh"
 #API logon
 auth_type: Cyberark
 logon_url: "https://"{{ base_pas_url }}"/PasswordVault/WebServices/auth/{{ auth_type }}/CyberArkAuthenticationService.svc/Logon"
-admin_user: administrator
-admin_pw: Cyberark
+
 
 #UserAdd url
 
