@@ -1,8 +1,9 @@
 ---
 
 
-# defaults file for cp-configure
-#INSERT CONFIG HERE
+#### 
+
+# CHANGE THESE PARAMETERS BASED ON YOUR ENVIROMENT
 
 base_pas_url:  # e.g. https://ec2-34-216-15-14.us-west-2.compute.amazonaws.com
 cp_file:    # e.g. AAM-RHELinux-Intel64-Rls-v13.0.2.zip
@@ -11,6 +12,9 @@ vault_address:  #e.g. 54.184.200.65
 cp_rpm: CARKaim-13.00.02.4.x86_64.rpm
 admin_user:   # e.g. administrator user for CyberArk Vault
 admin_pw:  #e.g. Cyberark administrator password
+
+
+#####
 
 #path defaults
 base_path: /cp_install
