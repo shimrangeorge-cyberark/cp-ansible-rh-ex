@@ -24,7 +24,11 @@
     path: "{{ cp_ansible_directory_path }}"
     state: directory
 
-#### S3 BUCKET (this playbook assumes using S3 bucket to store RPM) #####
+#### 
+
+S3 BUCKET SECTION (this playbook assumes using S3 bucket to store RPM)
+
+#####
 
 - name: List Objects in CP bucket
   amazon.aws.aws_s3:
@@ -49,6 +53,12 @@
     mode: get
     aws_access_key:  "{{ lookup('env','AWS_ACCESS_KEY') }}"
     aws_secret_key: "{{ lookup('env','AWS_SECRET_ACCESS_KEY') }}"
+
+
+####
+#  END S3 BUCKET SECTION
+####
+
 
 - name: Extract files into CP directory
   unarchive: 
